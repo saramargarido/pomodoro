@@ -19,7 +19,7 @@ import {
 const newCycleFormValidationSchema = zod.object({
   task: zod.string().min(1, 'Informe a tarefa'),
   minutesAmount: zod.number().min(
-    5,
+    1,
     'O ciclo precisa ser de no mínimo 5 segundos',
   ).max(
     60,
@@ -35,6 +35,7 @@ interface Cycle {
   minutesAmount: number
   startDate: Date
   interruptedDate?: Date
+  finishedDate?: Date
 }
 
 export default function Home() {
@@ -50,21 +51,51 @@ export default function Home() {
   })
 
   const activeCycle = cycles.find(cycle => cycle.id === activeCycleId)
+  const totalSeconds = activeCycle
+    ? activeCycle.minutesAmount * 60
+    : 0
+
+  const currentSeconds = activeCycle
+    ? totalSeconds - amountSecondsPassed
+    : 0
+
+  const minutesAmount = Math.floor(currentSeconds / 60)
+  const secondsAmount = currentSeconds % 60
+
+  // preenche string até tamanho específico com algum caracter
+  const minutes = String(minutesAmount).padStart(2, '0')
+  // preenche string até tamanho específico com algum caracter
+  const seconds = String(secondsAmount).padStart(2, '0')
 
   useEffect(() => {
     let interval: number
     if (activeCycle) {
       interval = setInterval(() => {
-        setAmountSecondsPassed(
-          differenceInSeconds(new Date(), activeCycle.startDate),
+        const secondsDifference = differenceInSeconds(
+          new Date(), activeCycle.startDate,
         )
+        if (secondsDifference >= totalSeconds) {
+          setCycles(state =>
+            state.map(cycle => {
+              if (cycle.id === activeCycleId) {
+                return { ...cycle, finishedDate: new Date() }
+              } else {
+                return cycle
+              }
+            }),
+          )
+          setAmountSecondsPassed(totalSeconds)
+          clearInterval(interval)
+        } else {
+          setAmountSecondsPassed(secondsDifference)
+        }
       }, 1000)
     }
 
     return () => {
       clearInterval(interval)
     }
-  }, [activeCycle])
+  }, [activeCycle, totalSeconds, activeCycleId])
 
   function handleCreateNewCycle(data: NewCycleFormData) {
     const id = String(new Date().getTime())
@@ -82,31 +113,16 @@ export default function Home() {
   }
 
   function handleInterruptCycle() {
-    setCycles(cycles.map(cycle => {
-      if (cycle.id === activeCycleId) {
-        return { ...cycle, interruptedDate: new Date() }
-      } else {
-        return cycle
-      }
-    }))
+    setCycles(state =>
+      state.map(cycle => {
+        if (cycle.id === activeCycleId) {
+          return { ...cycle, interruptedDate: new Date() }
+        } else {
+          return cycle
+        }
+      }))
     setActiveCycleId(null)
   }
-
-  const totalSeconds = activeCycle
-    ? activeCycle.minutesAmount * 60
-    : 0
-
-  const currentSeconds = activeCycle
-    ? totalSeconds - amountSecondsPassed
-    : 0
-
-  const minutesAmount = Math.floor(currentSeconds / 60)
-  const secondsAmount = currentSeconds % 60
-
-  // preenche string até tamanho específico com algum caracter
-  const minutes = String(minutesAmount).padStart(2, '0')
-  // preenche string até tamanho específico com algum caracter
-  const seconds = String(secondsAmount).padStart(2, '0')
 
   useEffect(() => {
     if (activeCycle) {
@@ -142,7 +158,7 @@ export default function Home() {
             id="minutesAmount"
             placeholder="00"
             step={5}
-            min={5}
+            min={1}
             max={60}
             disabled={!!activeCycle}
             {...register('minutesAmount', { valueAsNumber: true })}
