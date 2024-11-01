@@ -1,4 +1,4 @@
-import { Cycle } from './cycles'
+import { Cycle } from './reducer'
 
 export enum ActionTypes {
   // eslint-disable-next-line no-unused-vars
